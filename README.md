@@ -2,32 +2,154 @@
 
 ## Project Summary
 
-In this project you will build and explain a small music recommender system.
-
-Your goal is to:
-
-- Represent songs and a user "taste profile" as data
-- Design a scoring rule that turns that data into recommendations
-- Evaluate what your system gets right and wrong
-- Reflect on how this mirrors real world AI recommenders
-
-Replace this paragraph with your own summary of what your version does.
+This music recommender system uses **weighted content-based filtering** to predict which songs a user will love next. It mirrors real-world platforms like Spotify and YouTube by scoring each song across multiple dimensions (genre, mood, energy, etc.) and ranking by fit. The system prioritizes **categorical preferences** (exact genre/mood match) heavily, while using **proximity-based scoring** for numerical features, allowing flexibility. Unlike collaborative filtering (which relies on what similar users like), this approach uses only the song's audio features and the user's stated preferences, making it interpretable and transparent.
 
 ---
 
 ## How The System Works
 
-Explain your design in plain language.
+### Song Features
+Each song in the catalog has 10 features:
+- **Categorical:** `genre` (e.g., pop, rock, lofi), `mood` (e.g., happy, intense, chill)
+- **Numerical (0.0–1.0 scale):** 
+  - `energy` — loudness and intensity
+  - `danceability` — rhythm strength and beat regularity
+  - `valence` — musical positivity/happiness
+  - `acousticness` — acoustic vs. electronic instrumentation
+- **Tempo:** `tempo_bpm` — beats per minute (e.g., 60–180 BPM)
 
-Some prompts to answer:
+### User Profile Features
+Each user profile specifies 7 target preferences:
+- **Categorical:** `favorite_genre`, `favorite_mood`
+- **Numerical targets:** `target_energy`, `target_danceability`, `target_valence`, `target_acousticness`, `target_tempo`
 
-- What features does each `Song` use in your system
-  - For example: genre, mood, energy, tempo
-- What information does your `UserProfile` store
-- How does your `Recommender` compute a score for each song
-- How do you choose which songs to recommend
+### Scoring Algorithm
+For each song in the catalog, the system calculates a **weighted composite score**:
 
-You can include a simple diagram or bullet list if helpful.
+```
+SCORE = 0.30*genre_match + 0.25*mood_match + 0.15*energy_proximity 
+      + 0.10*danceability_proximity + 0.10*acousticness_proximity 
+      + 0.07*valence_proximity + 0.03*tempo_proximity
+```
+
+**Scoring rules:**
+- **Genre & Mood:** Exact match = 1.0 points, no match = 0.0 points
+- **Numerical features:** Gaussian decay based on distance from user target
+  - Peak score (1.0) at exact target value
+  - Smooth decline as distance increases
+  - Formula: `exp(-(distance²)/(2×σ²))` where σ=0.25
+
+**Weight hierarchy:** Genre (0.30) is weighted highest because it defines the primary listening context. Mood (0.25) ranks second as it captures emotional intent. Energy, danceability, and acousticness (0.15, 0.10, 0.10) provide secondary refinement.
+
+### Recommendation Process
+1. **Score all 18 songs** using the weighted formula above
+2. **Rank by score** (highest first)
+3. **Select top-K** (default K=5) recommendations
+4. **Generate explanations** for each recommendation showing the top 3 matching signals
+
+### Example
+A user with profile (pop, happy, energy=0.85) would:
+- Give "Sunrise City" (pop, happy, energy=0.82) a score of **0.99** ✓
+- Give "Midnight Coding" (lofi, chill, energy=0.42) a score of **0.17** ✗
+- Give "Storm Runner" (rock, intense, energy=0.91) a score of **0.38** ✗
+
+---
+
+## Finalized Algorithm Recipe
+
+### Step-by-Step Scoring Process
+
+**For each of the 18 songs in the catalog:**
+
+1. **Check Genre Match**
+   - If `song.genre == user.favorite_genre`: score = 1.0
+   - Else: score = 0.0
+   - Apply weight: `0.30 × genre_score`
+
+2. **Check Mood Match**
+   - If `song.mood == user.favorite_mood`: score = 1.0
+   - Else: score = 0.0
+   - Apply weight: `0.25 × mood_score`
+
+3. **Calculate Energy Proximity**
+   - Distance = |song.energy - user.target_energy|
+   - Gaussian decay: `exp(-(distance²)/(2×0.25²))`
+   - Apply weight: `0.15 × energy_score`
+
+4. **Calculate Danceability Proximity**
+   - Distance = |song.danceability - user.target_danceability|
+   - Gaussian decay applied
+   - Weight: `0.10 × dance_score`
+
+5. **Calculate Acousticness Proximity**
+   - Distance = |song.acousticness - user.target_acousticness|
+   - Gaussian decay applied
+   - Weight: `0.10 × acoustic_score`
+
+6. **Calculate Valence Proximity**
+   - Distance = |song.valence - user.target_valence|
+   - Gaussian decay applied
+   - Weight: `0.07 × valence_score`
+
+7. **Calculate Tempo Proximity**
+   - Normalize tempo to [0.0, 1.0] scale (min=60, max=180)
+   - Distance = |normalized_song_tempo - normalized_user_target|
+   - Gaussian decay applied
+   - Weight: `0.03 × tempo_score`
+
+8. **Sum Weighted Scores**
+   - `FINAL_SCORE = 0.30×genre + 0.25×mood + 0.15×energy + 0.10×dance + 0.10×acoustic + 0.07×valence + 0.03×tempo`
+   - Result: single score in [0.0, 1.0]
+
+**After scoring all 18 songs:**
+- Sort by final score (highest first)
+- Select top 5
+- Generate explanations for each (show top 3 matching signals)
+- Display to user
+
+---
+
+## Expected Biases and Limitations
+
+### Bias #1: Genre Over-Prioritization (weight: 0.30)
+**Issue:** This system treats genre matching as "all-or-nothing." A user who loves "pop" will see a rock song score 0.30 points lower immediately, even if it perfectly matches their energy/mood preferences.
+
+**Example:** A user who typically likes pop but secretly loves heavy metal will miss metal recommendations because genre mismatch eliminates 30% of the score.
+
+**Mitigation:** In future versions, could allow secondary genres (e.g., "pop + indie pop") or fuzzy genre matching.
+
+### Bias #2: Filter Bubble (No Exploration Strategy)
+**Issue:** The system always recommends the mathematically highest-scored songs. It will never suggest a "surprising but delightful" song with a 0.65 score when a safe 0.95 match exists.
+
+**Example:** Late Night Romantic user gets jazz recommendations every time—never discovers the perfect ambient artist hiding at 0.62 score.
+
+**Mitigation:** Real recommenders use "exploration rate" (10–20% random picks) to balance discovery. This system does not.
+
+### Bias #3: Preference Rigidity
+**Issue:** User profiles are static. The system assumes a user's energy preference is always 0.85, but people's moods change throughout the day (morning chill ≠ evening party).
+
+**Example:** Study Buddy who prefers low energy (0.40) gets low-energy songs at 6 PM when they want to work out.
+
+**Mitigation:** Context-aware recommendations (time of day, location, current activity) could adjust profiles dynamically.
+
+### Bias #4: Small Catalog (18 songs)
+**Issue:** With only 18 songs, genre matches are rare. A user wanting "classical" music has only 1 song to choose from, so they'll always see "Piano Nocturne" as #1.
+
+**Real-world impact:** In production systems with 100M songs, diversity problems are less severe because multiple songs match every preference.
+
+### Bias #5: No Artist or Label Diversity Strategy
+**Issue:** The system has no mechanism to prevent recommending the same artist multiple times or to promote underrepresented artists.
+
+**Example:** Neon Echo appears twice in the catalog (songs #1 and #8). A matching user might see both ranked #1 and #3, monopolizing recommendations.
+
+**Mitigation:** Add "Don't recommend >1 song per artist" rule to ranking phase.
+
+### Bias #6: Assumes All Users Have Uniform Preference Shape
+**Issue:** The Gaussian decay with σ=0.25 applies equally to all users. But some users might have a very narrow energy preference (σ=0.10) while others are flexible (σ=0.50).
+
+**Example:** A user who likes "exactly 0.85 energy" gets penalized the same way as someone who's fine with 0.70–1.0 energy range.
+
+**Mitigation:** Could allow per-user σ parameter, or offer preset "strict" vs. "flexible" modes.
 
 ---
 
