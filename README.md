@@ -155,7 +155,7 @@ A user with profile (pop, happy, energy=0.85) would:
 
 ## 📸 Demo
 
-<a href="/demo images/screenshot1.png" target="_blank"><img src='/demo images/screenshot1.png' width='' class='center-block' /></a>
+<a href="/demo images/screenshot1.png" target="_blank"><img src='/demo images/screenshot1.png' title='Music Recommend App' width='' class='center-block' /></a>
 
 ---
 
