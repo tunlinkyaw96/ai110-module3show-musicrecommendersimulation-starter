@@ -157,6 +157,14 @@ A user with profile (pop, happy, energy=0.85) would:
 
 <a href="demo%20images/Screenshot1.png" target="_blank"><img src='demo%20images/Screenshot1.png' title='Music Recommend App' width='' class='center-block' /></a>
 
+<a href="demo%20images/Screenshot2.png" target="_blank"><img src='demo%20images/Screenshot1.png' title='Music Recommend App' width='' class='center-block' /></a>
+
+<a href="demo%20images/Screenshot3.png" target="_blank"><img src='demo%20images/Screenshot1.png' title='Music Recommend App' width='' class='center-block' /></a>
+
+<a href="demo%20images/Screenshot4.png" target="_blank"><img src='demo%20images/Screenshot1.png' title='Music Recommend App' width='' class='center-block' /></a>
+
+<a href="demo%20images/Screenshot5.png" target="_blank"><img src='demo%20images/Screenshot1.png' title='Music Recommend App' width='' class='center-block' /></a>
+
 ---
 
 ## Getting Started
